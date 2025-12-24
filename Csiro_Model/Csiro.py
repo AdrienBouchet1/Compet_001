@@ -6,14 +6,14 @@ class Csiro(nn.Module) :
 
     """ Version la plus simple : on utilise les features intermédiaires 1 par 1""" 
     
-    def __init__(self, Hiera_instance): 
+    def __init__(self, Hiera_instance,device:str="cuda"): 
         """
         Hiera_instance doit être une instance de modèle Hiera (on laisse la souplesse de choisir quel type d'instance, donc on le saisi en tant qu'argument
         """
       
         super().__init__() 
 
-        self.device="cuda"
+        self.device=device
         self.__build_model(Hiera_instance)
 
 
