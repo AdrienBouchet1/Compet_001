@@ -17,12 +17,13 @@ class CsiroDataSet(Dataset) :
 
     """
 
-    def __init__(self,CSV_path,full : str = True) : 
+    def __init__(self,CSV_path,full : str = True,device : stre ="cuda") : 
 
         """
         Full if we have all tabular data (for training) 
         """
-
+        
+        self.device=device
         self.full=full
         self.csv=pd.read_csv(CSV_path)
         
