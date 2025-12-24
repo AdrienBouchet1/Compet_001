@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+import torch
 
 class Csiro(nn.Module) : 
 
@@ -21,11 +21,13 @@ class Csiro(nn.Module) :
         
         self.hiera=Hiera_instance.to(self.device)
         self.mlp = nn.Sequential(
+                    nn.Linear(1152, 768),
+                    nn.ReLU(),
                     nn.Linear(768, 256),
                     nn.ReLU(),
                     nn.Linear(256, 256),
                     nn.ReLU(),
-                    nn.Linear(256, 5) )
+                    nn.Linear(256, 5))
             
     def forward(self,x) : 
 
@@ -33,14 +35,30 @@ class Csiro(nn.Module) :
         Dans le cas classique (sans meta données) x (donc l'image) doit être un tenseur normalisé de taille (1,3,H,W)
 
         """
-        
-        _,x2=self.hiera(x,return_intermediates=True) 
-
-        
-        pooled=x2[-1].mean(dim=(1, 2))
-        print("pooled dim : ", pooled.shape)
-        y=self.mlp(pooled)
-        
+            
+        _, x2 = self.hiera(x, return_intermediates=True)
+    
+        # ======================
+        # Deep features (last)
+        # ======================
+        feat_deep = x2[-1].mean(dim=(1, 2))  # (B, C_deep)
+    
+        # ======================
+        # Intermediate features (second last)
+        # ======================
+        feat_mid = x2[-2].mean(dim=(1, 2))   # (B, C_mid)
+    
+        # ======================
+        # Concatenation
+        # ======================
+        pooled = torch.cat([feat_mid, feat_deep], dim=1)
+    
+        print("feat_mid :", feat_mid.shape)
+        print("feat_deep:", feat_deep.shape)
+        print("concat   :", pooled.shape)
+    
+        y = self.mlp(pooled)
+    
         return y
         
         
