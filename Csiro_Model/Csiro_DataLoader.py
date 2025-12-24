@@ -5,9 +5,10 @@ from PIL import Image
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 import pandas as pd
 import numpy as np 
+from albumentations.pytorch import ToTensorV2
 
 
-
+import albumentations as A
 
 class CsiroDataSet(Dataset) : 
 
@@ -17,7 +18,7 @@ class CsiroDataSet(Dataset) :
 
     """
 
-    def __init__(self,CSV_path,full : str = True,device : stre ="cuda") : 
+    def __init__(self,CSV_path,full : str = True,device:str="cuda", augment: bool = True) : 
 
         """
         Full if we have all tabular data (for training) 
@@ -26,29 +27,38 @@ class CsiroDataSet(Dataset) :
         self.device=device
         self.full=full
         self.csv=pd.read_csv(CSV_path)
-        
+        self.augment = augment
 
         ###instanciation des transforms
         transform_list = [
             transforms.Resize((224,224), interpolation=InterpolationMode.BICUBIC),
         ]
-        self.transform_norm = transforms.Compose(transform_list + [
-            transforms.ToTensor(),
-            transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD),
+        self.transform_norm = A.Compose([
+            A.Resize(224, 224),
+            A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+            ToTensorV2(),
         ])
 
+        self.augmentations = A.Compose([
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5),
+            A.RandomRotate90(p=0.5),
+            A.RandomBrightnessContrast(p=0.5),
+            A.GaussianBlur(blur_limit=(1,3), p=0.3),  # flou faible
+            A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3),
+            A.Resize(224,224),  # toujours resize à la fin pour être sûr
+            A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+            ToTensorV2()
+        ])
         self.list_path=self.csv["image_path"].unique().tolist()
+
+        
     
     def __transform(self, x):
 
         
         return self.transform_norm(x)
-
-    def __augmentation(self, x): 
-
-        pass
-
-        
+    
     def __len__(self): 
 
         
@@ -65,11 +75,16 @@ class CsiroDataSet(Dataset) :
         else : 
             sub_data=self.csv[self.csv["image_path"]==path][["sample_id","image_path","target_name","target"]]
             
-    
-        img = Image.open(self.list_path[idx])
-        img = self.__transform(img).to("cuda") 
+        img = np.array(Image.open(path).convert("RGB"))
+                       
+        if self.augment:
+            img = self.augmentations(image=img)["image"]
+        else:
+            img = self.transform_norm(image=img)["image"]
 
+        #  img = self.__transform(img).to(self.device) 
 
+        img=img.to(self.device)
 
 
         ###Mise en forme de l'output
