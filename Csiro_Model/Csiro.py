@@ -4,6 +4,8 @@ import torch.nn as nn
 class Csiro(nn.Module) : 
 
 
+    """ Version la plus simple : on utilise les features intermédiaires 1 par 1""" 
+    
     def __init__(self, Hiera_instance): 
         """
         Hiera_instance doit être une instance de modèle Hiera (on laisse la souplesse de choisir quel type d'instance, donc on le saisi en tant qu'argument
@@ -17,10 +19,14 @@ class Csiro(nn.Module) :
 
     def __build_model(self,Hiera_instance):
         
-        ### Ici, on considère que les poids d'intérêt pour HIERA ont déja été chargés à l'initialisation de l'instance
         self.hiera=Hiera_instance.to(self.device)
-        
-        
+        self.mlp = nn.Sequential(
+                    nn.Linear(768, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 5) )
+            
     def forward(self,x) : 
 
         """
@@ -29,9 +35,13 @@ class Csiro(nn.Module) :
         """
         
         _,x2=self.hiera(x,return_intermediates=True) 
+
         
+        pooled=x2[-1].mean(dim=(1, 2))
+        print("pooled dim : ", pooled.shape)
+        y=self.mlp(pooled)
         
-        return x2
+        return y
         
         
 
