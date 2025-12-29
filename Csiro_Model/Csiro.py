@@ -21,47 +21,103 @@ class Csiro(nn.Module) :
         
         self.hiera=Hiera_instance.to(self.device)
         self.mlp = nn.Sequential(
-                    nn.Linear(1152, 768),
-                    nn.ReLU(),
+                    #nn.Linear(1152, 768),
+                    #nn.ReLU(),
                     nn.Linear(768, 256),
                     nn.ReLU(),
                     nn.Linear(256, 256),
                     nn.ReLU(),
                     nn.Linear(256, 5))
-            
-    def forward(self,x) : 
 
+    def __tile_batch(self, x, tile_size=224, stride=224):
         """
-        Dans le cas classique (sans meta données) x (donc l'image) doit être un tenseur normalisé de taille (1,3,H,W)
+        x: (B,3,H,W)
+        retourne:
+            tiles: (N_tiles,3,224,224)
+            tile_to_img: (N_tiles,)
+        """
+        B, C, H, W = x.shape
+        tiles = []
+        tile_to_img = []
+    
+        for b in range(B):
+            for y in range(0, H - tile_size + 1, stride):
+                for x_ in range(0, W - tile_size + 1, stride):
+                    tile = x[b, :, y:y+tile_size, x_:x_+tile_size]
+                    tiles.append(tile)
+                    tile_to_img.append(b)
+    
+        tiles = torch.stack(tiles)
+        tile_to_img = torch.tensor(tile_to_img, device=x.device)
+    
+        return tiles, tile_to_img
 
+
+    
+    def __tile_one_image(self, x, tile_size=224, stride=224):
         """
-            
-        _, x2 = self.hiera(x, return_intermediates=True)
+        x: (3,H,W)
+        retourne: (N_tiles,3,224,224)
+        """
+        C, H, W = x.shape
+        tiles = []
     
-        # ======================
-        # Deep features (last)
-        # ======================
-        feat_deep = x2[-1].mean(dim=(1, 2))  # (B, C_deep)
+        for y in range(0, H - tile_size + 1, stride):
+            for x_ in range(0, W - tile_size + 1, stride):
+                tiles.append(x[:, y:y+tile_size, x_:x_+tile_size])
     
-        # ======================
-        # Intermediate features (second last)
-        # ======================
-        feat_mid = x2[-2].mean(dim=(1, 2))   # (B, C_mid)
-    
-        # ======================
-        # Concatenation
-        # ======================
-        pooled = torch.cat([feat_mid, feat_deep], dim=1)
-    
-        print("feat_mid :", feat_mid.shape)
-        print("feat_deep:", feat_deep.shape)
-        print("concat   :", pooled.shape)
-    
-        y = self.mlp(pooled)
-    
-        return y
+        return torch.stack(tiles)
+
         
+    def forward(self, x):
+
+            # ======================
+            # Cas image 224x224
+            # ======================
+            if x.shape[-2:] == (224, 224):
+                _, x2 = self.hiera(x, return_intermediates=True)
+                feat_deep = x2[-1].mean(dim=(1, 2))  # (B,768)
+                return self.mlp(feat_deep)
         
+            # ======================
+            # Cas image grande (batch)
+            # ======================
+            elif x.shape[-2:] == (1000, 2000):
+        
+                B = x.shape[0]
+                feats_batch = []
+        
+                for b in range(B):
+                    print("batch ",b)
+                    # ---- découpe image b ----
+                    tiles = self.__tile_one_image(x[b])
+                    tiles = tiles.to(self.device)
+                    
+                    print("tiles shape : ",tiles.shape)
+                    # ---- passage dans Hiera ----
+                    _, x2 = self.hiera(tiles, return_intermediates=True)
+                    
+                    
+                    # ---- embedding par tuile ----
+                    feat_tiles = x2[-1].mean(dim=(1, 2))  # (N_tiles,768)
+                    print("feat_tiles.shape ", feat_tiles.shape)
+                    
+        
+                    # ---- moyenne POUR CETTE IMAGE ----
+                    feat_img = feat_tiles.mean(dim=0)     # (768,)
+                    feats_batch.append(feat_img)
+                    
+        
+                feats_batch = torch.stack(feats_batch)     # (B,768)
+                print("feats_batch.shape", feats_batch.shape)
+                # ---- MLP final ----
+                y = self.mlp(feats_batch)
+                return y
+        
+            else:
+                raise Exception(f"problème de shape : {x.shape[-2:]}")
+                        
+                
 
          
 

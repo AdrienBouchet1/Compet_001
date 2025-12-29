@@ -18,7 +18,7 @@ class CsiroDataSet(Dataset) :
 
     """
 
-    def __init__(self,CSV_path,full : str = True,device:str="cuda", augment: bool = True) : 
+    def __init__(self,CSV_path,full : str = True,device:str="cuda", augment: bool = True, resize:bool=True) : 
 
         """
         Full if we have all tabular data (for training) 
@@ -33,23 +33,49 @@ class CsiroDataSet(Dataset) :
         transform_list = [
             transforms.Resize((224,224), interpolation=InterpolationMode.BICUBIC),
         ]
-        self.transform_norm = A.Compose([
-            A.Resize(224, 224),
-            A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-            ToTensorV2(),
-        ])
 
-        self.augmentations = A.Compose([
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
-            A.RandomRotate90(p=0.5),
-            A.RandomBrightnessContrast(p=0.5),
-            A.GaussianBlur(blur_limit=(1,3), p=0.3),  # flou faible
-            A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3),
-            A.Resize(224,224),  # toujours resize à la fin pour être sûr
-            A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
-            ToTensorV2()
-        ])
+        if resize : 
+            self.transform_norm = A.Compose([
+                A.Resize(224, 224),
+                A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+                ToTensorV2(),
+            ])
+
+            
+            self.augmentations = A.Compose([
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.RandomRotate90(p=0.5),
+                A.RandomBrightnessContrast(p=0.5),
+                A.GaussianBlur(blur_limit=(1,3), p=0.3),  # flou faible
+                A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3),
+                A.Resize(224,224),  # toujours resize à la fin pour être sûr
+                A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+                ToTensorV2()
+            ])
+
+        else:  
+            
+            self.transform_norm = A.Compose([
+                A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+                ToTensorV2(),
+            ])
+
+            
+            self.augmentations = A.Compose([
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+               
+                A.RandomBrightnessContrast(p=0.5),
+                A.GaussianBlur(blur_limit=(1,3), p=0.3),  # flou faible
+                A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3),
+            
+                A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
+                ToTensorV2()
+            ])
+
+        
+
         self.list_path=self.csv["image_path"].unique().tolist()
 
         
@@ -76,7 +102,7 @@ class CsiroDataSet(Dataset) :
             sub_data=self.csv[self.csv["image_path"]==path][["sample_id","image_path","target_name","target"]]
             
         img = np.array(Image.open(path).convert("RGB"))
-                       
+        assert img.shape==(1000,2000,3), "problème : shape {}".format(img.shape)
         if self.augment:
             img = self.augmentations(image=img)["image"]
         else:
