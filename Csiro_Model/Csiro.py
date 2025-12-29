@@ -82,25 +82,25 @@ class Csiro(nn.Module) :
             # ======================
             # Cas image grande (batch)
             # ======================
-            elif x.shape[-2:] == (1000, 2000):
+            elif x.shape[-2:] == (500,1000):
         
                 B = x.shape[0]
                 feats_batch = []
         
                 for b in range(B):
-                    print("batch ",b)
+             
                     # ---- découpe image b ----
                     tiles = self.__tile_one_image(x[b])
                     tiles = tiles.to(self.device)
                     
-                    print("tiles shape : ",tiles.shape)
+                  
                     # ---- passage dans Hiera ----
                     _, x2 = self.hiera(tiles, return_intermediates=True)
                     
                     
                     # ---- embedding par tuile ----
                     feat_tiles = x2[-1].mean(dim=(1, 2))  # (N_tiles,768)
-                    print("feat_tiles.shape ", feat_tiles.shape)
+            
                     
         
                     # ---- moyenne POUR CETTE IMAGE ----
@@ -109,7 +109,7 @@ class Csiro(nn.Module) :
                     
         
                 feats_batch = torch.stack(feats_batch)     # (B,768)
-                print("feats_batch.shape", feats_batch.shape)
+               
                 # ---- MLP final ----
                 y = self.mlp(feats_batch)
                 return y

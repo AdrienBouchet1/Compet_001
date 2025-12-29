@@ -57,6 +57,7 @@ class CsiroDataSet(Dataset) :
         else:  
             
             self.transform_norm = A.Compose([
+                A.Resize(500, 1000),
                 A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
                 ToTensorV2(),
             ])
@@ -65,15 +66,14 @@ class CsiroDataSet(Dataset) :
             self.augmentations = A.Compose([
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
-               
+                
                 A.RandomBrightnessContrast(p=0.5),
                 A.GaussianBlur(blur_limit=(1,3), p=0.3),  # flou faible
                 A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3),
-            
+                A.Resize(500,1000),  # toujours resize à la fin pour être sûr
                 A.Normalize(mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD),
                 ToTensorV2()
             ])
-
         
 
         self.list_path=self.csv["image_path"].unique().tolist()
