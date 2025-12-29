@@ -25,8 +25,10 @@ class Csiro(nn.Module) :
                     #nn.ReLU(),
                     nn.Linear(768, 256),
                     nn.ReLU(),
+                    nn.Dropout(p=0.3),
                     nn.Linear(256, 256),
                     nn.ReLU(),
+                    nn.Dropout(p=0.3),
                     nn.Linear(256, 5))
 
     def __tile_batch(self, x, tile_size=224, stride=224):
