@@ -1,5 +1,7 @@
 import torch.nn as nn
 import torch
+from ConvNeXt import convnext
+
 
 class Csiro(nn.Module) : 
 
@@ -120,6 +122,53 @@ class Csiro(nn.Module) :
                 raise Exception(f"problème de shape : {x.shape[-2:]}")
                         
                 
+
+
+class Csiro_ConvNext_student(nn.Module): 
+
+    def __init__(self, ConvNext_path : str=None, device:str="cuda"): 
+
+        super().__init__()
+        self.device=device
+        self.ConvNext_path=ConvNext_path
+        self.__build_model()
+        
+
+        
+    def __build_model(self): 
+        ## Instanciation de ConvNext
+        self.convnext=convnext.ConvNeXt(depths=[3, 3, 9, 3], dims=[96, 192, 384, 768])
+        checkpoint=torch.load(self.ConvNext_path)
+        self.convnext.load_state_dict(checkpoint["model"])
+        self.convnext.to(self.device)
+       
+        ### Instanciation du MLP 
+
+        self.mlp = nn.Sequential(
+                    nn.Linear(768, 256),
+                    nn.ReLU(),
+                    nn.Dropout(p=0.3),
+                    nn.Linear(256, 256),
+                    nn.ReLU(),
+                    nn.Dropout(p=0.3),
+                    nn.Linear(256, 5))
+
+        
+
+    def forward(self,x) : 
+
+        """
+        X : une image simple, au format(x
+
+        """
+        
+
+        embed=self.convnext.forward_features(x)
+        out=self.mlp(embed)
+
+        return out
+        
+
 
          
 
